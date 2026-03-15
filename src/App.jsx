@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { dbService } from './dbService';
 
 // 메인 앱 컴포넌트
@@ -8,12 +8,14 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
+  const fileInputRef = useRef(null);
 
   // Form states
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [feedback, setFeedback] = useState('');
+  const [selectedFileName, setSelectedFileName] = useState('');
 
   // Auth Observer (Using Mock Service)
   useEffect(() => {
@@ -66,6 +68,17 @@ export default function App() {
     }
   };
 
+  const handleFileClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setSelectedFileName(file.name);
+    }
+  };
+
   const submitActivity = async (activityName, feedbackText) => {
     if (!user) return;
     try {
@@ -74,10 +87,12 @@ export default function App() {
         name: name,
         activity: activityName,
         feedback: feedbackText,
+        fileName: selectedFileName,
         status: '완료'
       });
       alert('활동 기록이 제출되었습니다!');
       setFeedback('');
+      setSelectedFileName('');
       setView('MAIN');
     } catch (error) {
       alert("제출 실패: " + error.message);
@@ -248,13 +263,13 @@ export default function App() {
     return (
       <div className="max-w-md mx-auto border min-h-screen bg-gray-50 flex flex-col shadow-xl">
         <Header />
-        <div className="p-8 flex-1">
+        <div className="p-8 flex-1 overflow-y-auto">
           <div className="bg-white p-6 rounded-2xl shadow-sm mb-8">
             <p className="text-xl text-gray-800"><b>{name || '사용자'}</b>님, 환영합니다! 👋</p>
             <p className="text-gray-500 text-sm mt-1">{userRole === 'student' ? '오늘의 운동을 기록해보세요.' : '학급 활동을 관리해보세요.'}</p>
           </div>
           
-          <div className="grid gap-4">
+          <div className="grid gap-4 mb-8">
             <button onClick={() => setView('ACTIVITY_LIST')} className="p-6 bg-white border-2 border-blue-100 hover:border-blue-500 rounded-2xl text-left flex justify-between items-center transition-all shadow-sm group">
               <div>
                 <p className="font-bold text-lg text-blue-600">운동 시작하기 →</p>
@@ -263,16 +278,8 @@ export default function App() {
               <span className="text-3xl group-hover:translate-x-2 transition-transform">🏃‍♂️</span>
             </button>
             
-            <button className="p-6 bg-white border-2 border-gray-100 hover:border-gray-300 rounded-2xl text-left flex justify-between items-center transition-all shadow-sm group">
-              <div>
-                <p className="font-bold text-lg text-gray-700">마이 페이지 →</p>
-                <p className="text-sm text-gray-500">나의 운동 기록과 통계</p>
-              </div>
-              <span className="text-3xl group-hover:translate-x-2 transition-transform">📊</span>
-            </button>
-
             {userRole === 'teacher' && (
-              <button onClick={() => setView('TEACHER')} className="p-6 bg-gray-800 hover:bg-gray-900 text-white rounded-2xl text-left flex justify-between items-center transition-all shadow-xl mt-4 group">
+              <button onClick={() => setView('TEACHER')} className="p-6 bg-gray-800 hover:bg-gray-900 text-white rounded-2xl text-left flex justify-between items-center transition-all shadow-xl group">
                 <div>
                   <p className="font-bold text-lg">학급 활동 리포트 →</p>
                   <p className="text-sm text-gray-400">학생들의 기록 실시간 확인</p>
@@ -281,6 +288,34 @@ export default function App() {
               </button>
             )}
           </div>
+
+          {/* 나의 최근 활동 기록 (학생 전용) */}
+          {userRole === 'student' && (
+            <div>
+              <h3 className="font-bold text-gray-800 mb-4 flex justify-between items-center">
+                나의 최근 활동
+                <span className="text-xs text-blue-500 font-normal">총 {records.length}건</span>
+              </h3>
+              {records.length === 0 ? (
+                <div className="bg-white p-10 rounded-2xl border-2 border-dashed border-gray-100 text-center text-gray-400 text-sm">
+                  아직 기록이 없습니다.<br/>첫 운동을 시작해보세요!
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {records.map((r) => (
+                    <div key={r.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-50">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="font-bold text-sm text-gray-700">{r.activity}</span>
+                        <span className="text-[10px] text-gray-400">{r.date}</span>
+                      </div>
+                      <p className="text-xs text-gray-500 line-clamp-1">"{r.feedback}"</p>
+                      {r.fileName && <div className="mt-2 text-[10px] text-blue-400 flex items-center gap-1">📎 {r.fileName}</div>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -296,7 +331,10 @@ export default function App() {
         </div>
         <div className="p-6 space-y-3">
           {['운동 체력 기르기', '축구형 게임', '배구형 게임', '높이뛰기 도전', '댄스 스포츠'].map((act, i) => (
-            <div key={i} onClick={() => setView('ACTIVITY_DETAIL')} className="p-5 border rounded-2xl hover:bg-blue-50 hover:border-blue-300 cursor-pointer flex justify-between items-center transition-all group">
+            <div key={i} onClick={() => {
+              setName(name); // Ensure name is passed
+              setView('ACTIVITY_DETAIL');
+            }} className="p-5 border rounded-2xl hover:bg-blue-50 hover:border-blue-300 cursor-pointer flex justify-between items-center transition-all group">
               <span className="font-medium text-gray-700">{act}를 알아보아요</span>
               <span className="text-gray-300 group-hover:text-blue-500 transition-colors text-xl">›</span>
             </div>
@@ -318,13 +356,29 @@ export default function App() {
           <div className="bg-blue-50 p-5 rounded-2xl mb-8 border border-blue-100">
             <p className="text-blue-800 text-sm leading-relaxed">활동을 완료한 후, 느낀 점이나 소감을 아래에 자유롭게 작성해주세요.</p>
           </div>
+          
+          {/* 숨겨진 파일 인풋 */}
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            className="hidden" 
+            onChange={handleFileChange}
+            accept="image/*,video/*"
+          />
+
           <div className="mb-8">
             <label className="block text-sm font-bold text-gray-700 mb-3">인증 파일 (선택)</label>
-            <div className="border-2 border-dashed border-gray-200 p-10 text-center text-gray-400 rounded-2xl cursor-pointer hover:bg-gray-50 hover:border-blue-300 transition-all">
-              <span className="text-4xl block mb-2">📸</span>
-              파일 선택 (사진/영상)
+            <div 
+              onClick={handleFileClick}
+              className={`border-2 border-dashed p-10 text-center rounded-2xl cursor-pointer transition-all ${
+                selectedFileName ? 'border-blue-500 bg-blue-50 text-blue-600' : 'border-gray-200 text-gray-400 hover:bg-gray-50 hover:border-blue-300'
+              }`}
+            >
+              <span className="text-4xl block mb-2">{selectedFileName ? '✅' : '📸'}</span>
+              {selectedFileName ? selectedFileName : '파일 선택 (사진/영상)'}
             </div>
           </div>
+
           <div className="mb-8">
             <label className="block text-sm font-bold text-gray-700 mb-3">활동 후기</label>
             <textarea 
@@ -335,7 +389,7 @@ export default function App() {
             ></textarea>
           </div>
           <button 
-            onClick={() => submitActivity('선택한 신체활동', feedback)} 
+            onClick={() => submitActivity('운동 활동', feedback)} 
             className="w-full bg-blue-600 hover:bg-blue-700 text-white p-5 rounded-2xl font-bold shadow-xl transition-all transform active:scale-95"
           >인증 완료 및 제출</button>
         </div>
@@ -367,6 +421,7 @@ export default function App() {
                   </div>
                   <p className="text-sm font-semibold text-blue-600 mb-2">{r.activity}</p>
                   <p className="text-gray-600 text-sm leading-relaxed bg-gray-50 p-3 rounded-xl italic">"{r.feedback || '후기 없음'}"</p>
+                  {r.fileName && <div className="mt-3 text-[10px] text-gray-400 flex items-center gap-1 border-t pt-2">📎 첨부파일: {r.fileName}</div>}
                 </div>
               ))}
             </div>
