@@ -46,12 +46,20 @@ export default function App() {
   }, []);
 
   const fetchUserRole = async (uid) => {
-    const q = query(collection(db, "users"), where("uid", "==", uid));
-    const querySnapshot = await getDocs(q);
-    querySnapshot.forEach((doc) => {
-      setUserRole(doc.data().role);
-      setName(doc.data().name);
-    });
+    try {
+      const q = query(collection(db, "users"), where("uid", "==", uid));
+      const querySnapshot = await getDocs(q);
+      if (querySnapshot.empty) {
+        console.log("No user data found");
+        return;
+      }
+      querySnapshot.forEach((doc) => {
+        setUserRole(doc.data().role);
+        setName(doc.data().name);
+      });
+    } catch (error) {
+      console.error("Error fetching user role:", error);
+    }
   };
 
   const fetchRecords = async () => {

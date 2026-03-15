@@ -12,6 +12,10 @@ const firebaseConfig = {
   appId: "YOUR_APP_ID"
 };
 
+if (firebaseConfig.apiKey === "YOUR_API_KEY") {
+  console.warn("Firebase configuration is not set. Real-time features will not work.");
+}
+
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 export const auth = getAuth(app);
