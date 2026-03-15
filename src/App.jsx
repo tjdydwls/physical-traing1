@@ -17,7 +17,7 @@ import {
 
 // 메인 앱 컴포넌트
 export default function App() {
-  // 화면 전환을 위한 상태 (view: LOGIN, TYPE, TERMS, AUTH, SIGNUP, MAIN, ACTIVITY, TEACHER)
+  // 화면 전환을 위한 상태 (view: LOGIN, TYPE, TERMS, AUTH, SIGNUP, MAIN, ACTIVITY_LIST, ACTIVITY_DETAIL, TEACHER)
   const [view, setView] = useState('LOGIN');
   const [userRole, setUserRole] = useState(null); // 'student' or 'teacher'
   const [user, setUser] = useState(null);
@@ -158,7 +158,59 @@ export default function App() {
     );
   }
 
-  // ... (TYPE, TERMS, AUTH views remain similar)
+  // 2. 가입 유형 선택
+  if (view === 'TYPE') {
+    return (
+      <div className="max-w-md mx-auto border h-[700px] bg-gray-50 p-6">
+        <h2 className="text-xl font-bold mb-8 text-center">회원가입 유형 선택</h2>
+        <div className="grid grid-cols-2 gap-4">
+          <div onClick={() => { setUserRole('student'); setView('TERMS'); }} className="bg-white border-2 hover:border-blue-500 p-8 rounded-xl flex flex-col items-center cursor-pointer">
+            <span className="text-4xl mb-2">👤</span>
+            <p className="font-bold">학생</p>
+          </div>
+          <div onClick={() => { setUserRole('teacher'); setView('TERMS'); }} className="bg-white border-2 hover:border-blue-500 p-8 rounded-xl flex flex-col items-center cursor-pointer">
+            <span className="text-4xl mb-2">👨‍🏫</span>
+            <p className="font-bold">선생님</p>
+          </div>
+        </div>
+        <button onClick={() => setView('LOGIN')} className="mt-8 w-full p-3 text-gray-400">이전으로</button>
+      </div>
+    );
+  }
+
+  // 3. 약관 동의
+  if (view === 'TERMS') {
+    return (
+      <div className="max-w-md mx-auto border h-[700px] bg-white p-6 flex flex-col">
+        <h2 className="text-lg font-bold mb-4">이용약관 동의</h2>
+        <div className="flex-1 overflow-y-auto border p-4 text-sm text-gray-500 bg-gray-50 mb-4">
+          ■ 이용약관<br/>본 서비스 이용을 위해 약관에 동의해 주세요.
+        </div>
+        <div className="flex flex-col gap-2 mb-6 text-sm">
+          <label className="flex items-center gap-2"><input type="checkbox" /> 이용약관에 동의합니다.</label>
+          <label className="flex items-center gap-2"><input type="checkbox" /> 개인정보수집 및 이용에 동의합니다.</label>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={() => setView('TYPE')} className="flex-1 border p-3 rounded">이전</button>
+          <button onClick={() => setView('AUTH')} className="flex-1 bg-blue-500 text-white p-3 rounded">다음</button>
+        </div>
+      </div>
+    );
+  }
+
+  // 4. 본인 인증
+  if (view === 'AUTH') {
+    return (
+      <div className="max-w-md mx-auto border h-[700px] bg-white p-8 flex flex-col items-center justify-center text-center">
+        <div className="text-5xl mb-4">📱</div>
+        <p className="font-bold mb-2">본인 인증이 필요합니다.</p>
+        <p className="text-sm text-gray-500 mb-8">안전한 회원가입을 위하여<br/>휴대폰 본인인증을 진행해 주세요.</p>
+        <button onClick={() => {
+          if(window.confirm("인증하시는 분이 본인이 맞습니까?")) { setView('SIGNUP'); }
+        }} className="w-full bg-blue-500 text-white p-4 rounded-lg font-bold shadow-lg">인증하기</button>
+      </div>
+    );
+  }
 
   // 5. 회원가입 양식 
   if (view === 'SIGNUP') {
@@ -191,7 +243,6 @@ export default function App() {
               onChange={(e) => setPassword(e.target.value)}
             />
           </div>
-          {/* ... other fields like gender, school, grade can be added as state later */}
         </div>
         <button onClick={handleSignUp} className="w-full bg-green-500 text-white p-4 rounded-lg font-bold mt-8">가입 완료</button>
       </div>
@@ -221,20 +272,37 @@ export default function App() {
     );
   }
 
-  // ... (ACTIVITY_LIST remains similar)
+  // 7. 학년/활동 선택
+  if (view === 'ACTIVITY_LIST') {
+    return (
+      <div className="max-w-md mx-auto border h-[700px] bg-white">
+        <div className="p-4 border-b flex items-center gap-2">
+          <button onClick={() => setView('MAIN')}>←</button>
+          <span className="font-bold">활동 선택</span>
+        </div>
+        <div className="p-4 grid gap-2">
+          {['운동 체력', '축구형 게임', '배구형 게임', '높이뛰기', '댄스 스포츠'].map((act, i) => (
+            <div key={i} onClick={() => setView('ACTIVITY_DETAIL')} className="p-4 border rounded hover:bg-blue-50 cursor-pointer flex justify-between items-center">
+              <span>{act}를 알아보아요</span>
+              <span className="text-gray-300">›</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   // 8. 세부 활동 및 기록
   if (view === 'ACTIVITY_DETAIL') {
     return (
       <div className="max-w-md mx-auto border h-[700px] bg-white flex flex-col">
         <div className="p-4 border-b font-bold flex justify-between">
-          <span>양말 공 골인</span>
+          <span>운동 활동 기록</span>
           <button onClick={() => setView('ACTIVITY_LIST')}>X</button>
         </div>
         <div className="p-6 flex-1 overflow-y-auto">
           <div className="bg-blue-50 p-4 rounded-lg mb-6 text-sm">
-            <p className="font-bold text-blue-800 mb-1">대상: 6학년 | 단원: 2. 스포츠</p>
-            <p className="text-gray-600">돌돌 만 양말을 거실 한쪽에 둔 바구니 안으로 발 안쪽을 이용해 정확히 밀어넣는 연습</p>
+            <p className="text-gray-600">선택한 활동을 수행하고 아래에 후기를 남겨주세요.</p>
           </div>
           <div className="mb-6">
             <p className="font-bold mb-2 text-sm">참여 인증 파일</p>
@@ -250,7 +318,7 @@ export default function App() {
             ></textarea>
           </div>
           <button 
-            onClick={() => submitActivity('양말 공 골인', feedback)} 
+            onClick={() => submitActivity('선택 활동', feedback)} 
             className="w-full bg-blue-600 text-white p-4 rounded-lg font-bold mt-6 shadow-md"
           >인증 완료</button>
         </div>
@@ -258,7 +326,7 @@ export default function App() {
     );
   }
 
-  // 9. 교사용 관리 화면 (학생 기록 관리) [cite: 139, 168]
+  // 9. 교사용 관리 화면
   if (view === 'TEACHER') {
     return (
       <div className="max-w-md mx-auto border h-[700px] bg-gray-50 flex flex-col">
@@ -271,16 +339,13 @@ export default function App() {
             <div className="p-3 border-b bg-gray-100 flex justify-between text-xs font-bold text-gray-500">
               <span>학생명</span><span>활동내용</span><span>상태</span>
             </div>
-            {records.map(r => (
-              <div key={r.id} className="p-3 border-b flex justify-between items-center text-sm">
+            {records.map((r, i) => (
+              <div key={i} className="p-3 border-b flex justify-between items-center text-sm">
                 <span className="font-medium">{r.name}</span>
                 <span className="text-gray-600">{r.activity}</span>
-                <span className="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs">확인완료</span>
+                <span className="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs">{r.status}</span>
               </div>
             ))}
-          </div>
-          <div className="text-center p-4">
-            <button className="text-blue-500 text-sm font-bold underline">기록 엑셀 다운로드</button>
           </div>
         </div>
       </div>
