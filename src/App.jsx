@@ -1,23 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { db, auth } from './firebase';
-import { 
-  createUserWithEmailAndPassword, 
-  signInWithEmailAndPassword, 
-  onAuthStateChanged,
-  signOut 
-} from 'firebase/auth';
-import { 
-  collection, 
-  addDoc, 
-  getDocs, 
-  setDoc,
-  doc,
-  getDoc,
-  query, 
-  where,
-  orderBy,
-  serverTimestamp 
-} from 'firebase/firestore';
+import { dbService } from './dbService';
 
 // 메인 앱 컴포넌트
 export default function App() {
@@ -33,54 +15,26 @@ export default function App() {
   const [name, setName] = useState('');
   const [feedback, setFeedback] = useState('');
 
-  // Firebase Auth Observer
+  // Auth Observer (Using Mock Service)
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+    dbService.auth.onAuthStateChanged((currentUser) => {
       if (currentUser) {
         setUser(currentUser);
-        await fetchUserRole(currentUser.uid);
+        setUserRole(currentUser.role);
+        setName(currentUser.name);
         setView('MAIN');
       } else {
         setUser(null);
-        setUserRole(null);
         setView('LOGIN');
       }
       setLoading(false);
     });
-    return () => unsubscribe();
   }, []);
-
-  const fetchUserRole = async (uid) => {
-    try {
-      const userDoc = await getDoc(doc(db, "users", uid));
-      if (userDoc.exists()) {
-        const userData = userDoc.data();
-        setUserRole(userData.role);
-        setName(userData.name);
-      }
-    } catch (error) {
-      console.error("Error fetching user role:", error);
-    }
-  };
 
   const fetchRecords = async () => {
     if (!user) return;
     try {
-      let q;
-      if (userRole === 'teacher') {
-        // 교사는 모든 기록을 최신순으로 확인
-        q = query(collection(db, "records"), orderBy("timestamp", "desc"));
-      } else {
-        // 학생은 본인 기록만 확인
-        q = query(
-          collection(db, "records"), 
-          where("studentId", "==", user.uid),
-          orderBy("timestamp", "desc")
-        );
-      }
-      
-      const querySnapshot = await getDocs(q);
-      const data = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const data = await dbService.db.getRecords(userRole, user.uid);
       setRecords(data);
     } catch (error) {
       console.error("Error fetching records:", error);
@@ -88,7 +42,7 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (userRole && (view === 'TEACHER' || view === 'MAIN')) {
+    if (user && (view === 'TEACHER' || view === 'MAIN')) {
       fetchRecords();
     }
   }, [view, userRole, user]);
@@ -96,7 +50,7 @@ export default function App() {
   const handleLogin = async () => {
     if (!email || !password) return alert("이메일과 비밀번호를 입력해주세요.");
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      await dbService.auth.signIn(email, password);
     } catch (error) {
       alert("로그인 실패: " + error.message);
     }
@@ -105,20 +59,8 @@ export default function App() {
   const handleSignUp = async () => {
     if (!email || !password || !name) return alert("모든 정보를 입력해주세요.");
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const newUser = userCredential.user;
-      
-      // 사용자 정보를 Firestore에 저장 (UID를 문서 ID로 사용)
-      await setDoc(doc(db, "users", newUser.uid), {
-        uid: newUser.uid,
-        name: name,
-        role: userRole,
-        email: email,
-        createdAt: serverTimestamp()
-      });
-      
+      await dbService.auth.signUp(email, password, name, userRole);
       alert("회원가입이 완료되었습니다!");
-      setView('MAIN');
     } catch (error) {
       alert("회원가입 실패: " + error.message);
     }
@@ -127,17 +69,15 @@ export default function App() {
   const submitActivity = async (activityName, feedbackText) => {
     if (!user) return;
     try {
-      await addDoc(collection(db, "records"), {
+      await dbService.db.addRecord({
         studentId: user.uid,
         name: name,
         activity: activityName,
         feedback: feedbackText,
-        status: '완료',
-        date: new Date().toLocaleDateString(),
-        timestamp: serverTimestamp()
+        status: '완료'
       });
       alert('활동 기록이 제출되었습니다!');
-      setFeedback(''); // 입력창 초기화
+      setFeedback('');
       setView('MAIN');
     } catch (error) {
       alert("제출 실패: " + error.message);
@@ -148,9 +88,9 @@ export default function App() {
     <div className="bg-blue-600 text-white p-4 text-center font-bold shadow-md">
       <div className="flex justify-between items-center max-w-md mx-auto mb-1">
         <p className="text-xs opacity-80">라이프 스킬을 통한</p>
-        {user && <button onClick={() => auth.signOut()} className="text-xs bg-blue-700 hover:bg-blue-800 px-2 py-1 rounded transition-colors">로그아웃</button>}
+        {user && <button onClick={() => dbService.auth.signOut()} className="text-xs bg-blue-700 hover:bg-blue-800 px-2 py-1 rounded transition-colors">로그아웃</button>}
       </div>
-      <h1 className="text-xl">피지컬 리터러시 기르기</h1>
+      <h1 className="text-xl">피지컬 리터러시 기르기 {dbService.isDemo && <span className="text-[10px] bg-yellow-400 text-blue-900 px-1 rounded ml-1">DEMO</span>}</h1>
     </div>
   );
 
@@ -189,6 +129,7 @@ export default function App() {
           </div>
           <button onClick={handleLogin} className="bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-lg font-bold shadow-lg transform active:scale-95 transition-all">로그인</button>
           <button onClick={() => setView('TYPE')} className="text-blue-500 font-medium text-sm hover:underline">아직 회원이 아니신가요? 회원가입</button>
+          {dbService.isDemo && <p className="text-[10px] text-gray-400 text-center">※ 현재 데모 모드입니다. 데이터는 브라우저에 임시 저장됩니다.</p>}
         </div>
       </div>
     );
@@ -224,7 +165,7 @@ export default function App() {
         <h2 className="text-xl font-bold mb-6 text-gray-800">이용약관 동의</h2>
         <div className="flex-1 overflow-y-auto border rounded-lg p-4 text-sm text-gray-600 bg-gray-50 mb-6 leading-relaxed">
           <p className="font-bold mb-2">■ 서비스 이용약관</p>
-          본 서비스는 학생들의 신체 활동을 기록하고 관리하기 위한 목적으로 제공됩니다. 수집된 정보는 교육적 목적으로만 사용되며, 동의 없이 제3자에게 제공되지 않습니다...
+          본 서비스는 학생들의 신체 활동을 기록하고 관리하기 위한 목적으로 제공됩니다. 수집된 정보는 교육적 목적으로만 사용되며, 동의 없이 제3자에게 제공되지 않습니다.
         </div>
         <div className="space-y-3 mb-8">
           <label className="flex items-center gap-3 p-2 cursor-pointer hover:bg-gray-50 rounded-lg">
@@ -375,7 +316,7 @@ export default function App() {
         </div>
         <div className="p-6 flex-1 overflow-y-auto">
           <div className="bg-blue-50 p-5 rounded-2xl mb-8 border border-blue-100">
-            <p className="text-blue-800 text-sm leading-relaxed">활동을 완료한 후, 느낀 점이나 소감을 아래에 자유롭게 작성해주세요. 사진이나 영상을 함께 업로드하면 더욱 좋습니다!</p>
+            <p className="text-blue-800 text-sm leading-relaxed">활동을 완료한 후, 느낀 점이나 소감을 아래에 자유롭게 작성해주세요.</p>
           </div>
           <div className="mb-8">
             <label className="block text-sm font-bold text-gray-700 mb-3">인증 파일 (선택)</label>
