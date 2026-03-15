@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "physical-traing2",
+  "name": "physical-traing1",
   "compatibility_date": "2025-03-14",
   "assets": {
     "directory": "dist",
